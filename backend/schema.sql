@@ -1,0 +1,146 @@
+-- Import into the existing student database. All money values use whole rupiah.
+SET NAMES utf8mb4;
+CREATE TABLE IF NOT EXISTS users (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(100) NOT NULL,
+ email VARCHAR(190) NOT NULL UNIQUE,
+ password_hash VARCHAR(255) NOT NULL,
+ balance BIGINT NOT NULL DEFAULT 0,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ CHECK (balance >= 0)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS sessions (
+ token_hash CHAR(64) PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ expires_at DATETIME NOT NULL,
+ FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS categories (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(80) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+INSERT IGNORE INTO categories (id,name) VALUES
+ (1,'Kuliner'),(2,'Oleh-oleh'),(3,'Fashion'),(4,'Kecantikan'),(5,'Elektronik'),(6,'Hobi');
+CREATE TABLE IF NOT EXISTS trips (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ owner_id BIGINT UNSIGNED NOT NULL,
+ name VARCHAR(150) NOT NULL,
+ destination VARCHAR(150) NOT NULL,
+ departure DATE NOT NULL,
+ return_date DATE NOT NULL,
+ status ENUM('open','live','finished') NOT NULL DEFAULT 'open',
+ FOREIGN KEY (owner_id) REFERENCES users(id),
+ CHECK (return_date >= departure)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS requests (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ trip_id BIGINT UNSIGNED NOT NULL,
+ buyer_id BIGINT UNSIGNED NOT NULL,
+ name VARCHAR(150) NOT NULL,
+ description TEXT NOT NULL,
+ status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+ FOREIGN KEY (trip_id) REFERENCES trips(id),
+ FOREIGN KEY (buyer_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS products (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ trip_id BIGINT UNSIGNED NOT NULL,
+ source_request_id BIGINT UNSIGNED NULL UNIQUE,
+ name VARCHAR(150) NOT NULL,
+ description TEXT NOT NULL,
+ price BIGINT NOT NULL,
+ stock INT NOT NULL,
+ photo VARCHAR(255) NOT NULL DEFAULT '',
+ FOREIGN KEY (trip_id) REFERENCES trips(id),
+ FOREIGN KEY (source_request_id) REFERENCES requests(id),
+ CHECK (price > 0), CHECK (stock >= 0)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS product_categories (
+ product_id BIGINT UNSIGNED NOT NULL,
+ category_id INT UNSIGNED NOT NULL,
+ PRIMARY KEY(product_id,category_id),
+ FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+ FOREIGN KEY (category_id) REFERENCES categories(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS cart (
+ user_id BIGINT UNSIGNED NOT NULL,
+ product_id BIGINT UNSIGNED NOT NULL,
+ quantity INT NOT NULL,
+ PRIMARY KEY(user_id,product_id),
+ FOREIGN KEY (user_id) REFERENCES users(id),
+ FOREIGN KEY (product_id) REFERENCES products(id),
+ CHECK (quantity > 0)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS checkouts (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ buyer_id BIGINT UNSIGNED NOT NULL,
+ operation_key VARCHAR(80) NOT NULL,
+ UNIQUE(buyer_id,operation_key),
+ FOREIGN KEY (buyer_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS orders (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ checkout_id BIGINT UNSIGNED NOT NULL,
+ buyer_id BIGINT UNSIGNED NOT NULL,
+ trip_id BIGINT UNSIGNED NOT NULL,
+ total BIGINT NOT NULL,
+ status ENUM('paid','purchased','delivered','completed') NOT NULL DEFAULT 'paid',
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (checkout_id) REFERENCES checkouts(id),
+ FOREIGN KEY (buyer_id) REFERENCES users(id),
+ FOREIGN KEY (trip_id) REFERENCES trips(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS order_items (
+ order_id BIGINT UNSIGNED NOT NULL,
+ product_id BIGINT UNSIGNED NOT NULL,
+ name VARCHAR(150) NOT NULL,
+ price BIGINT NOT NULL,
+ quantity INT NOT NULL,
+ PRIMARY KEY(order_id,product_id),
+ FOREIGN KEY (order_id) REFERENCES orders(id),
+ FOREIGN KEY (product_id) REFERENCES products(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS ledger (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ amount BIGINT NOT NULL,
+ description VARCHAR(200) NOT NULL,
+ operation_key VARCHAR(100) NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(user_id,operation_key),
+ FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS checkins (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ trip_id BIGINT UNSIGNED NOT NULL,
+ latitude DECIMAL(10,7) NOT NULL,
+ longitude DECIMAL(10,7) NOT NULL,
+ accuracy DOUBLE NOT NULL,
+ note VARCHAR(200) NOT NULL,
+ photo VARCHAR(255) NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (trip_id) REFERENCES trips(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS favorites (
+ user_id BIGINT UNSIGNED NOT NULL,
+ product_id BIGINT UNSIGNED NOT NULL,
+ PRIMARY KEY(user_id,product_id),
+ FOREIGN KEY (user_id) REFERENCES users(id),
+ FOREIGN KEY (product_id) REFERENCES products(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS reviews (
+ order_id BIGINT UNSIGNED PRIMARY KEY,
+ rating INT NOT NULL,
+ comment VARCHAR(1000) NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (order_id) REFERENCES orders(id),
+ CHECK (rating BETWEEN 1 AND 5)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS notifications (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ message VARCHAR(255) NOT NULL,
+ is_read BOOLEAN NOT NULL DEFAULT FALSE,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;

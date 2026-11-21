@@ -1,0 +1,7 @@
+Options -Indexes
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+<FilesMatch "^(config.*\.php|schema\.sql)$">
+    Require all denied
+</FilesMatch>

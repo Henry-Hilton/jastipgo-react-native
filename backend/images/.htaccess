@@ -1,0 +1,8 @@
+Options -Indexes -ExecCGI
+<FilesMatch "\.(php|phtml|phar|cgi|pl|html|svg)$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options nosniff
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
